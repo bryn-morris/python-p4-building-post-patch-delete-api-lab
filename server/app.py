@@ -30,18 +30,34 @@ def bakeries():
     )
     return response
 
-@app.route('/bakeries/<int:id>')
+@app.route('/bakeries/<int:id>', methods = ['GET', 'PATCH', 'DELETE'])
 def bakery_by_id(id):
 
-    bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
+    update_bg = Bakery.query.filter(Bakery.id == id).one()
 
-    response = make_response(
-        bakery_serialized,
-        200
-    )
-    return response
+    if request.method == 'GET':
+        return make_response(Bakery.query.filter_by(id=id).first().to_dict(), 200)
+    elif request.method == 'PATCH':
 
+        for attr in request.form:
+            setattr(update_bg, attr, request.form.get(attr))
+
+        db.session.add(update_bg)
+        db.session.commit()
+
+        return make_response(update_bg.to_dict(), 200)
+    elif request.method == 'DELETE':
+
+        db.session.delete(update_bg)
+        db.session.commit()
+
+        response_body = {
+            "delete_successful": True,
+            "message": "Review deleted."
+        }
+
+        return make_response(response_body, 200)
+    
 @app.route('/baked_goods/by_price')
 def baked_goods_by_price():
     baked_goods_by_price = BakedGood.query.order_by(BakedGood.price).all()
@@ -65,6 +81,30 @@ def most_expensive_baked_good():
         200
     )
     return response
+
+@app.route('/baked_goods', methods = ['GET', 'POST'])
+def baked_goods():
+
+    if request.method == 'GET':
+
+        return make_response([bg.to_dict() for bg in BakedGood.query.all()], 200)
+
+    elif request.method == 'POST':
+
+        new_bg = BakedGood(
+            name = request.form.get('name'),
+            price = request.form.get('price'),
+            # bakery = Bakery.query.filter(Bakery.id == request.form.get('bakery_id')).one()
+            bakery_id = request.form.get('bakery_id')
+        )
+
+        db.session.add(new_bg)
+        db.session.commit()
+
+        response = make_response(new_bg.to_dict(), 201)
+
+        return response
+
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
